@@ -42,8 +42,43 @@ const EmberMap = {
 
         mapElement.dataset.initialized = 'true';
         const payload = JSON.parse(dataElement.textContent || '{}');
-        const locations = Array.isArray(payload) ? payload : (payload.locations || []);
-        this.locations = locations;
+        const rawLocations = Array.isArray(payload)
+            ? payload
+            : (payload.locations || []);
+
+        this.locations = rawLocations.map((location) => ({
+            ...location,
+
+            latitude: Number(location.latitude),
+            longitude: Number(location.longitude),
+            confidence: Number(location.confidence),
+
+            land_cover_id: location.land_cover_id !== null && location.land_cover_id !== undefined
+                ? Number(location.land_cover_id)
+                : null,
+
+            prior_lcs: location.prior_lcs !== null && location.prior_lcs !== undefined
+                ? Number(location.prior_lcs)
+                : null,
+
+            empirical_evidence: location.empirical_evidence !== null && location.empirical_evidence !== undefined
+                ? Number(location.empirical_evidence)
+                : null,
+
+            hybrid_lcs: location.hybrid_lcs !== null && location.hybrid_lcs !== undefined
+                ? Number(location.hybrid_lcs)
+                : null,
+
+            fsi_score: location.fsi_score !== null && location.fsi_score !== undefined
+                ? Number(location.fsi_score)
+                : null,
+
+            land_cover: location.land_cover ? String(location.land_cover).trim() : '',
+            fsi_class: location.fsi_class ? String(location.fsi_class).trim() : '',
+            context_flag: location.context_flag ? String(location.context_flag).trim() : '',
+        }));
+
+        const locations = this.locations;
         this.language = payload.language === 'en' ? 'en' : 'id';
 
         this.map = L.map(mapElement, {
@@ -572,8 +607,47 @@ const EmberMap = {
         const landCoverSelect = document.getElementById('map-land-cover-filter');
         const resetButton = document.querySelector('[data-map-filters-reset]');
 
+        const updateButtonState = (button, active) => {
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+
+            button.classList.toggle('border-red-500', active);
+            button.classList.toggle('bg-red-50', active);
+            button.classList.toggle('text-red-700', active);
+
+            button.classList.toggle('border-slate-200', !active);
+            button.classList.toggle('bg-white', !active);
+            button.classList.toggle('text-slate-600', !active);
+
+            const icon = button.querySelector('svg');
+            if (icon) {
+                icon.classList.toggle('opacity-100', active);
+                icon.classList.toggle('opacity-30', !active);
+            }
+        };
+
+        const updateAllButtonStates = () => {
+            confidenceButtons.forEach((button) => {
+                const key = button.dataset.mapConfidence;
+                updateButtonState(
+                    button,
+                    this.activeConfidenceKeys.has(key),
+                );
+            });
+
+            fsiButtons.forEach((button) => {
+                const key = button.dataset.mapFsi;
+                updateButtonState(
+                    button,
+                    this.activeFsiKeys.has(key),
+                );
+            });
+        };
+
         confidenceButtons.forEach((button) => {
-            button.addEventListener('click', () => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
                 const key = button.dataset.mapConfidence;
 
                 if (this.activeConfidenceKeys.has(key)) {
@@ -582,13 +656,16 @@ const EmberMap = {
                     this.activeConfidenceKeys.add(key);
                 }
 
-                button.setAttribute('aria-pressed', this.activeConfidenceKeys.has(key) ? 'true' : 'false');
+                updateAllButtonStates();
                 this.applyLocationFilters();
             });
         });
 
         fsiButtons.forEach((button) => {
-            button.addEventListener('click', () => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
                 const key = button.dataset.mapFsi;
 
                 if (this.activeFsiKeys.has(key)) {
@@ -597,30 +674,53 @@ const EmberMap = {
                     this.activeFsiKeys.add(key);
                 }
 
-                button.setAttribute('aria-pressed', this.activeFsiKeys.has(key) ? 'true' : 'false');
+                updateAllButtonStates();
                 this.applyLocationFilters();
             });
         });
 
-        landCoverSelect?.addEventListener('change', () => {
+        landCoverSelect?.addEventListener('change', (event) => {
+            event.stopPropagation();
+
             this.activeLandCover = landCoverSelect.value || 'all';
             this.applyLocationFilters();
         });
 
-        resetButton?.addEventListener('click', () => {
+        resetButton?.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
             this.activeConfidenceKeys = new Set(['low', 'nominal', 'high']);
-            this.activeFsiKeys = new Set(['very_low', 'low', 'moderate', 'high', 'very_high', 'unrated']);
+            this.activeFsiKeys = new Set([
+                'very_low',
+                'low',
+                'moderate',
+                'high',
+                'very_high',
+                'unrated',
+            ]);
             this.activeLandCover = 'all';
-            confidenceButtons.forEach((button) => button.setAttribute('aria-pressed', 'true'));
-            fsiButtons.forEach((button) => button.setAttribute('aria-pressed', 'true'));
-            if (landCoverSelect) landCoverSelect.value = 'all';
+
+            if (landCoverSelect) {
+                landCoverSelect.value = 'all';
+            }
+
+            updateAllButtonStates();
             this.applyLocationFilters();
         });
+
+        updateAllButtonStates();
     },
 
     fsiKey(fsiClass) {
-        if (!fsiClass) return 'unrated';
-        return String(fsiClass).toLowerCase().replace('very high', 'very_high').replace('very low', 'very_low').replace(' ', '_');
+        if (!fsiClass) {
+            return 'unrated';
+        }
+
+        return String(fsiClass)
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, '_');
     },
 
     applyLocationFilters() {
@@ -766,22 +866,45 @@ const EmberMap = {
     },
 
     statusFor(confidence) {
-        if (confidence === null || String(confidence).trim() === '') {
-            return { key: 'unrated', label: this.language === 'en' ? 'Unrated' : 'Belum dinilai', color: '#64748b' };
+        if (confidence === null || confidence === undefined || String(confidence).trim() === '') {
+            return {
+                key: 'unrated',
+                label: this.language === 'en' ? 'Unrated' : 'Belum dinilai',
+                color: '#64748b',
+            };
         }
 
-        const value = String(confidence).trim().toLowerCase();
-        const numericValue = Number(value);
+        const numericValue = Number(confidence);
 
-        if (['high', 'tinggi'].includes(value) || (Number.isFinite(numericValue) && numericValue >= 80)) {
-            return { key: 'high', label: this.language === 'en' ? 'High' : 'Tinggi', color: '#ef4444' };
+        if (!Number.isFinite(numericValue)) {
+            return {
+                key: 'unrated',
+                label: this.language === 'en' ? 'Unrated' : 'Belum dinilai',
+                color: '#64748b',
+            };
         }
 
-        if (['nominal', 'medium', 'sedang'].includes(value) || (Number.isFinite(numericValue) && numericValue >= 50)) {
-            return { key: 'medium', label: this.language === 'en' ? 'Medium' : 'Sedang', color: '#f59e0b' };
+        if (numericValue >= 80) {
+            return {
+                key: 'high',
+                label: this.language === 'en' ? 'High' : 'Tinggi',
+                color: '#ef4444',
+            };
         }
 
-        return { key: 'low', label: this.language === 'en' ? 'Low' : 'Rendah', color: '#10b981' };
+        if (numericValue >= 30) {
+            return {
+                key: 'nominal',
+                label: 'Nominal',
+                color: '#f59e0b',
+            };
+        }
+
+        return {
+            key: 'low',
+            label: this.language === 'en' ? 'Low' : 'Rendah',
+            color: '#10b981',
+        };
     },
 
     showLocationDetail(location, status) {
@@ -791,15 +914,41 @@ const EmberMap = {
             return;
         }
 
+        const fsiScore = Number(location.fsi_score);
+        const hybridLcs = Number(location.hybrid_lcs);
+
         const values = {
-            title: location.desa || (this.language === 'en' ? 'Village not available' : 'Desa belum tersedia'),
-            region: [location.kecamatan, location.kabupaten_kota, location.provinsi].filter(Boolean).join(', ') || '-',
-            confidence: location.confidence ?? '-',
+            title: location.desa
+                || (this.language === 'en' ? 'Village not available' : 'Desa belum tersedia'),
+
+            region: [
+                location.kecamatan,
+                location.kabupaten_kota,
+                location.provinsi,
+            ].filter(Boolean).join(', ') || '-',
+
+            confidence: Number.isFinite(Number(location.confidence))
+                ? `${Number(location.confidence).toFixed(0)} / 100`
+                : '-',
+
             status: status.label,
-            fsi: Number.isFinite(Number(location.fsi_score)) ? `${Number(location.fsi_score).toFixed(1)} / 100` : '-',
-            fsiClass: location.fsi_class || (this.language === 'en' ? 'Not assessed' : 'Belum dinilai'),
+
+            fsi: Number.isFinite(fsiScore)
+                ? `${fsiScore.toFixed(1)} / 100`
+                : (this.language === 'en' ? 'Not assessed' : 'Belum dinilai'),
+
+            fsiClass: location.fsi_class || (
+                this.language === 'en'
+                    ? 'Not assessed'
+                    : 'Belum dinilai'
+            ),
+
             landCover: location.land_cover || '-',
-            lcs: Number.isFinite(Number(location.hybrid_lcs)) ? `${Number(location.hybrid_lcs).toFixed(1)} / 100` : '-',
+
+            lcs: Number.isFinite(hybridLcs)
+                ? `${hybridLcs.toFixed(1)} / 100`
+                : '-',
+
             province: location.provinsi || '-',
             regency: location.kabupaten_kota || '-',
             district: location.kecamatan || '-',
@@ -817,14 +966,24 @@ const EmberMap = {
         });
 
         const link = document.getElementById('map-detail-link');
-        if (link) {
+
+        if (link && location.detail_url) {
             link.href = location.detail_url;
+        }
+
+        const flagElement = document.getElementById('map-detail-contextFlag');
+
+        if (flagElement) {
+            flagElement.textContent = location.context_flag || (
+                this.language === 'en'
+                    ? 'Normal'
+                    : 'Normal'
+            );
         }
 
         panel.dataset.open = 'true';
         panel.setAttribute('aria-hidden', 'false');
         panel.scrollTop = 0;
-        document.getElementById('map-detail-close')?.focus({ preventScroll: true });
     },
 
     closeLocationDetail() {

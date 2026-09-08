@@ -214,6 +214,16 @@
                             <span id="map-detail-lcs" class="font-black text-slate-800">-</span>
                         </div>
                     </div>
+                    
+                    <div class="mt-3 flex items-center justify-between gap-3 text-xs">
+                        <span class="font-semibold text-slate-400">
+                            {{ $language === 'en' ? 'Context assessment' : 'Penilaian konteks' }}
+                        </span>
+
+                        <span id="map-detail-contextFlag" class="rounded-full bg-white px-2.5 py-1 font-black text-slate-700 ring-1 ring-slate-200">
+                            -
+                        </span>
+                    </div>
 
                     <dl class="mt-5 divide-y divide-slate-100 border-y border-slate-200">
                         @foreach (($language === 'en' ? [
