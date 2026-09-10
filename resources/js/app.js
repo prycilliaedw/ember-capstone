@@ -712,7 +712,7 @@ const EmberMap = {
         updateAllButtonStates();
     },
 
-    fsiKey(fsiClass) {
+        fsiKey(fsiClass) {
         if (!fsiClass) {
             return 'unrated';
         }
@@ -723,25 +723,71 @@ const EmberMap = {
             .replace(/\s+/g, '_');
     },
 
-    applyLocationFilters() {
-        const filteredLocations = this.locations.filter((location) => {
+    /**
+     * Menghasilkan data hotspot yang benar-benar sesuai
+     * dengan semua filter aktif.
+     *
+     * Filter yang digunakan:
+     * - Tahun
+     * - Confidence NASA
+     * - Kerawanan / FSI
+     * - Tutupan lahan
+     */
+    getFilteredLocations() {
+        return this.locations.filter((location) => {
             const matchesYear = this.selectedYear === 'all'
-                || (location.date && String(location.date).slice(0, 4) === this.selectedYear);
-            const confidenceClass = location.confidence_class || this.confidenceClass(location.confidence);
+                || (
+                    location.date
+                    && String(location.date).slice(0, 4) === String(this.selectedYear)
+                );
+
+            const confidenceClass =
+                location.confidence_class ||
+                this.confidenceClass(location.confidence);
+
             const fsiClass = this.fsiKey(location.fsi_class);
-            const matchesConfidence = confidenceClass ? this.activeConfidenceKeys.has(confidenceClass) : false;
+
+            const matchesConfidence = confidenceClass
+                ? this.activeConfidenceKeys.has(confidenceClass)
+                : false;
+
             const matchesFsi = this.activeFsiKeys.has(fsiClass);
+
             const matchesLandCover = this.activeLandCover === 'all'
                 || String(location.land_cover || '') === this.activeLandCover;
 
-            return matchesYear && matchesConfidence && matchesFsi && matchesLandCover;
+            return (
+                matchesYear
+                && matchesConfidence
+                && matchesFsi
+                && matchesLandCover
+            );
+        });
+    },
+
+    /**
+     * Terapkan semua filter ke marker peta
+     * dan statistik.
+     */
+    applyLocationFilters() {
+        const filteredLocations = this.getFilteredLocations();
+
+        this.renderMarkers(filteredLocations, {
+            fitView: false,
         });
 
-        this.renderMarkers(filteredLocations, { fitView: false });
         this.updateMapStatistics();
+
         this.closeLocationDetail();
     },
 
+    /**
+     * Update panel statistik berdasarkan DATA YANG SUDAH DIFILTER.
+     *
+     * Penting:
+     * Statistik dan marker sekarang memakai dataset hasil filter
+     * yang sama.
+     */
     updateMapStatistics() {
         const panel = document.getElementById('map-statistics-panel');
         const donut = document.getElementById('map-yearly-donut');
@@ -750,111 +796,328 @@ const EmberMap = {
         const periodElement = document.getElementById('map-statistics-period');
         const monthlySection = document.getElementById('map-monthly-statistics');
 
-        if (!panel || !donut || !totalElement || !regionElement || !periodElement || !monthlySection) {
+        if (
+            !panel
+            || !donut
+            || !totalElement
+            || !regionElement
+            || !periodElement
+            || !monthlySection
+        ) {
             return;
         }
 
         const statusDefinitions = {
-            high: { color: '#b91c1c' },
-            nominal: { color: '#d97706' },
-            low: { color: '#047857' },
-            unrated: { color: '#334155' },
+            high: {
+                color: '#b91c1c',
+            },
+
+            nominal: {
+                color: '#d97706',
+            },
+
+            low: {
+                color: '#047857',
+            },
+
+            unrated: {
+                color: '#334155',
+            },
         };
-        const normalizeRegion = (value) => String(value || '').trim().toLocaleLowerCase('id-ID');
+
+        const normalizeRegion = (value) => {
+            return String(value || '')
+                .trim()
+                .toLocaleLowerCase('id-ID');
+        };
+
         const selectedProvince = this.boundarySelection.province;
         const selectedProvinceKey = normalizeRegion(selectedProvince);
-        const formatter = new Intl.NumberFormat(this.language === 'en' ? 'en-US' : 'id-ID');
-        const regionLocations = this.locations.filter((location) => {
-            const matchesProvince = !selectedProvinceKey
-                || normalizeRegion(location.provinsi) === selectedProvinceKey;
-            const statusKey = this.confidenceClass(location.confidence) || 'unrated';
 
-            return matchesProvince && (this.activeConfidenceKeys.has(statusKey) || statusKey === 'unrated');
-        });
-        const periodLocations = regionLocations.filter((location) => this.selectedYear === 'all'
-            || (location.date && String(location.date).slice(0, 4) === String(this.selectedYear))
+        const formatter = new Intl.NumberFormat(
+            this.language === 'en'
+                ? 'en-US'
+                : 'id-ID'
         );
-        const counts = Object.fromEntries(Object.keys(statusDefinitions).map((key) => [key, 0]));
 
-        periodLocations.forEach((location) => {
-            counts[this.confidenceClass(location.confidence) || 'unrated'] += 1;
+        /**
+         * Ambil SEMUA hotspot yang sudah melewati:
+         * 1. Tahun
+         * 2. Confidence
+         * 3. FSI
+         * 4. Tutupan lahan
+         */
+        let filteredLocations = this.getFilteredLocations();
+
+        /**
+         * Kalau user sedang memilih provinsi,
+         * statistik ikut dibatasi ke provinsi tersebut.
+         */
+        if (selectedProvinceKey) {
+            filteredLocations = filteredLocations.filter((location) => {
+                return normalizeRegion(location.provinsi) === selectedProvinceKey;
+            });
+        }
+
+        /**
+         * Hitung jumlah berdasarkan STATUS CONFIDENCE NASA.
+         *
+         * Jadi:
+         * - Tinggi    = confidence >= 80
+         * - Nominal   = confidence 30–79
+         * - Rendah    = confidence < 30
+         * - Belum dinilai = confidence tidak valid
+         */
+        const counts = Object.fromEntries(
+            Object.keys(statusDefinitions).map((key) => [key, 0])
+        );
+
+        filteredLocations.forEach((location) => {
+            const statusKey =
+                this.confidenceClass(location.confidence) || 'unrated';
+
+            if (Object.prototype.hasOwnProperty.call(counts, statusKey)) {
+                counts[statusKey] += 1;
+            }
         });
 
-        const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+        /**
+         * Total hotspot = jumlah data yang benar-benar lolos semua filter.
+         */
+        const total = filteredLocations.length;
+
+        /**
+         * Buat donut chart.
+         */
         let offset = 0;
-        const stops = Object.entries(statusDefinitions).map(([key, definition]) => {
-            const start = offset;
-            offset += total > 0 ? (counts[key] / total) * 100 : 0;
 
-            return `${definition.color} ${start}% ${offset}%`;
-        });
+        const stops = Object.entries(statusDefinitions).map(
+            ([key, definition]) => {
+                const start = offset;
+
+                offset += total > 0
+                    ? (counts[key] / total) * 100
+                    : 0;
+
+                return `${definition.color} ${start}% ${offset}%`;
+            }
+        );
 
         donut.style.background = total > 0
             ? `conic-gradient(${stops.join(', ')})`
             : 'conic-gradient(#e2e8f0 0% 100%)';
-        donut.setAttribute('aria-label', `${selectedProvince || 'Sumatera'}, ${this.selectedYear}: ${formatter.format(total)}`);
-        totalElement.textContent = formatter.format(total);
-        regionElement.textContent = selectedProvince || 'Sumatera';
-        periodElement.textContent = this.selectedYear === 'all'
-            ? (this.language === 'en' ? 'All years' : 'Semua tahun')
-            : String(this.selectedYear);
 
+        donut.setAttribute(
+            'aria-label',
+            `${selectedProvince || 'Sumatera'}, `
+            + `${this.selectedYear}: `
+            + `${formatter.format(total)}`
+        );
+
+        /**
+         * Tampilkan total hasil filtering.
+         */
+        totalElement.textContent = formatter.format(total);
+
+        regionElement.textContent =
+            selectedProvince || 'Sumatera';
+
+        periodElement.textContent =
+            this.selectedYear === 'all'
+                ? (
+                    this.language === 'en'
+                        ? 'All years'
+                        : 'Semua tahun'
+                )
+                : String(this.selectedYear);
+
+        /**
+         * Tampilkan jumlah per status confidence.
+         */
         Object.entries(counts).forEach(([key, count]) => {
-            const countElement = panel.querySelector(`[data-map-yearly-count="${key}"]`);
-            if (countElement) countElement.textContent = formatter.format(count);
+            const countElement = panel.querySelector(
+                `[data-map-yearly-count="${key}"]`
+            );
+
+            if (countElement) {
+                countElement.textContent = formatter.format(count);
+            }
         });
 
+        /**
+         * Statistik bulanan hanya muncul
+         * ketika satu tahun dipilih.
+         */
         const showMonthly = this.selectedYear !== 'all';
-        monthlySection.classList.toggle('hidden', !showMonthly);
+
+        monthlySection.classList.toggle(
+            'hidden',
+            !showMonthly
+        );
 
         if (!showMonthly) {
             return;
         }
 
-        const monthlyCounts = Array.from({ length: 12 }, () => ({
-            high: 0,
-            nominal: 0,
-            low: 0,
-            unrated: 0,
-        }));
-
-        periodLocations.forEach((location) => {
-            const month = Number(String(location.date || '').slice(5, 7));
-            if (month < 1 || month > 12) return;
-
-            monthlyCounts[month - 1][this.confidenceClass(location.confidence) || 'unrated'] += 1;
-        });
-
-        const monthlyTotals = monthlyCounts.map((monthCounts) =>
-            Object.values(monthCounts).reduce((sum, count) => sum + count, 0)
+        /**
+         * Siapkan data 12 bulan.
+         */
+        const monthlyCounts = Array.from(
+            { length: 12 },
+            () => ({
+                high: 0,
+                nominal: 0,
+                low: 0,
+                unrated: 0,
+            })
         );
-        const maxMonthlyTotal = Math.max(1, ...monthlyTotals);
 
-        monthlyCounts.forEach((monthCounts, monthIndex) => {
-            const bar = panel.querySelector(`[data-map-month-bar="${monthIndex}"]`);
-            if (!bar) return;
+        /**
+         * Gunakan DATA YANG SUDAH DIFILTER.
+         *
+         * Ini penting supaya grafik bulanan juga
+         * mengikuti filter tutupan lahan, FSI,
+         * confidence, dan tahun.
+         */
+        filteredLocations.forEach((location) => {
+            const month = Number(
+                String(location.date || '').slice(5, 7)
+            );
 
-            const monthTotal = monthlyTotals[monthIndex];
-            bar.replaceChildren();
-            bar.style.height = monthTotal > 0 ? `${Math.max(5, (monthTotal / maxMonthlyTotal) * 100)}%` : '0';
-            bar.title = `${formatter.format(monthTotal)} ${this.language === 'en' ? 'locations' : 'lokasi'}`;
+            if (month < 1 || month > 12) {
+                return;
+            }
 
-            Object.entries(statusDefinitions).forEach(([key, definition]) => {
-                const count = monthCounts[key];
-                if (count === 0) return;
+            const statusKey =
+                this.confidenceClass(location.confidence)
+                || 'unrated';
 
-                const segment = document.createElement('span');
-                segment.style.height = `${(count / monthTotal) * 100}%`;
-                segment.style.background = definition.color;
-                segment.title = `${key}: ${formatter.format(count)}`;
-                bar.append(segment);
-            });
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    monthlyCounts[month - 1],
+                    statusKey
+                )
+            ) {
+                monthlyCounts[month - 1][statusKey] += 1;
+            }
         });
 
-        const monthlyTitle = document.getElementById('map-monthly-title');
-        const monthlyTotal = document.getElementById('map-monthly-total');
-        if (monthlyTitle) monthlyTitle.textContent = `${selectedProvince || 'Sumatera'} · ${this.selectedYear}`;
-        if (monthlyTotal) monthlyTotal.textContent = formatter.format(total);
+        /**
+         * Total per bulan.
+         */
+        const monthlyTotals = monthlyCounts.map(
+            (monthCounts) => {
+                return Object.values(monthCounts).reduce(
+                    (sum, count) => sum + count,
+                    0
+                );
+            }
+        );
+
+        const maxMonthlyTotal = Math.max(
+            1,
+            ...monthlyTotals
+        );
+
+        /**
+         * Render grafik batang bulanan.
+         */
+        monthlyCounts.forEach(
+            (monthCounts, monthIndex) => {
+                const bar = panel.querySelector(
+                    `[data-map-month-bar="${monthIndex}"]`
+                );
+
+                if (!bar) {
+                    return;
+                }
+
+                const monthTotal =
+                    monthlyTotals[monthIndex];
+
+                bar.replaceChildren();
+
+                bar.style.height =
+                    monthTotal > 0
+                        ? `${Math.max(
+                            5,
+                            (monthTotal / maxMonthlyTotal) * 100
+                        )}%`
+                        : '0';
+
+                bar.title =
+                    `${formatter.format(monthTotal)} `
+                    + `${this.language === 'en'
+                        ? 'locations'
+                        : 'lokasi'}`;
+
+                Object.entries(statusDefinitions).forEach(
+                    ([key, definition]) => {
+                        const count = monthCounts[key];
+
+                        if (count === 0 || monthTotal === 0) {
+                            return;
+                        }
+
+                        const segment =
+                            document.createElement('span');
+
+                        segment.style.height =
+                            `${(count / monthTotal) * 100}%`;
+
+                        segment.style.background =
+                            definition.color;
+
+                        segment.title =
+                            `${key}: `
+                            + `${formatter.format(count)}`;
+
+                        bar.append(segment);
+                    }
+                );
+            }
+        );
+
+        /**
+         * Judul dan total grafik bulanan.
+         */
+        const monthlyTitle =
+            document.getElementById(
+                'map-monthly-title'
+            );
+
+        const monthlyTotal =
+            document.getElementById(
+                'map-monthly-total'
+            );
+
+        if (monthlyTitle) {
+            monthlyTitle.textContent =
+                `${selectedProvince || 'Sumatera'} · ${this.selectedYear}`;
+        }
+
+        if (monthlyTotal) {
+            monthlyTotal.textContent =
+                formatter.format(total);
+        }
+    },
+
+    confidenceClass(confidence) {
+        const value = Number(confidence);
+
+        if (!Number.isFinite(value)) {
+            return null;
+        }
+
+        if (value < 30) {
+            return 'low';
+        }
+
+        if (value < 80) {
+            return 'nominal';
+        }
+
+        return 'high';
     },
 
     confidenceClass(confidence) {
