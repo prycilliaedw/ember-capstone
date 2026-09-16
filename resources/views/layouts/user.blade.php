@@ -15,8 +15,7 @@
         <span class="mr-2 inline-block size-1.5 rounded-full bg-red-500 align-middle shadow-[0_0_10px_rgba(239,68,68,.9)]"></span>
         Early Monitoring for Burning Environment Response
     </div>
-    <header class="relative z-[1000] border-b border-slate-200/80 bg-white/90 shadow-[0_1px_12px_rgba(15,23,42,.04)] backdrop-blur-xl">
-        <nav class="mx-auto flex min-h-17 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8" aria-label="{{ $currentLanguage === 'en' ? 'Main navigation' : 'Navigasi utama' }}">
+        <header class="relative z-[1000] border-b border-slate-200 bg-white shadow-[0_1px_12px_rgba(15,23,42,.04)]">        <nav class="mx-auto flex min-h-17 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8" aria-label="{{ $currentLanguage === 'en' ? 'Main navigation' : 'Navigasi utama' }}">
             <a href="{{ route('user.dashboard', ['lang' => $currentLanguage]) }}" class="flex shrink-0 items-center gap-3">
                 <img src="{{ asset('images/ember-logo.png') }}" alt="EMBER - Early Monitoring for Burning Environment Response" class="h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20">
             </a>
