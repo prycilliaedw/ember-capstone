@@ -448,7 +448,7 @@ const EmberMap = {
 
         if (levelElement) levelElement.textContent = labels[activeLevel] || labels.province;
         if (breadcrumbElement) breadcrumbElement.textContent = breadcrumb;
-        if (instructionElement) instructionElement.textContent = instruction;
+                if (instructionElement) instructionElement.textContent = instruction;
         resetButton?.classList.toggle('hidden', !this.boundarySelection.province && !this.boundaryPointFocus);
     },
 
@@ -712,7 +712,7 @@ const EmberMap = {
         updateAllButtonStates();
     },
 
-        fsiKey(fsiClass) {
+    fsiKey(fsiClass) {
         if (!fsiClass) {
             return 'unrated';
         }
@@ -898,8 +898,7 @@ const EmberMap = {
                 offset += total > 0
                     ? (counts[key] / total) * 100
                     : 0;
-
-                return `${definition.color} ${start}% ${offset}%`;
+                                    return `${definition.color} ${start}% ${offset}%`;
             }
         );
 
@@ -1120,14 +1119,6 @@ const EmberMap = {
         return 'high';
     },
 
-    confidenceClass(confidence) {
-        const value = Number(confidence);
-        if (!Number.isFinite(value)) return null;
-        if (value < 30) return 'low';
-        if (value < 80) return 'nominal';
-        return 'high';
-    },
-
     statusFor(confidence) {
         if (confidence === null || confidence === undefined || String(confidence).trim() === '') {
             return {
@@ -1200,11 +1191,27 @@ const EmberMap = {
                 ? `${fsiScore.toFixed(1)} / 100`
                 : (this.language === 'en' ? 'Not assessed' : 'Belum dinilai'),
 
-            fsiClass: location.fsi_class || (
-                this.language === 'en'
-                    ? 'Not assessed'
-                    : 'Belum dinilai'
-            ),
+            fsiClass: (() => {
+                const fsiClass = String(location.fsi_class || '').trim();
+
+                if (!fsiClass) {
+                    return this.language === 'en'
+                        ? 'Not assessed'
+                        : 'Belum dinilai';
+                }
+
+                if (this.language === 'en') {
+                    return fsiClass;
+                }
+
+                return {
+                    'Very Low': 'Sangat Rendah',
+                    'Low': 'Rendah',
+                    'Moderate': 'Sedang',
+                    'High': 'Tinggi',
+                    'Very High': 'Sangat Tinggi',
+                }[fsiClass] || fsiClass;
+            })(),
 
             landCover: location.land_cover || '-',
 
@@ -1287,12 +1294,19 @@ document.addEventListener('click', async (event) => {
 
     try {
         await navigator.clipboard.writeText(button.dataset.copyUrl);
-        button.textContent = 'URL tersalin';
+        button.textContent = EmberMap.language === 'en'
+            ? 'URL copied'
+            : 'URL tersalin';
         window.setTimeout(() => {
             button.textContent = originalLabel;
         }, 1600);
     } catch {
-        window.prompt('Salin URL foto berikut:', button.dataset.copyUrl);
+        window.prompt(
+            EmberMap.language === 'en'
+                ? 'Copy the following photo URL:'
+                : 'Salin URL foto berikut:',
+            button.dataset.copyUrl,
+        );
     }
 });
 
@@ -1333,8 +1347,7 @@ const initializeLocationDetailMap = () => {
     if (!mapElement || !dataElement || mapElement.dataset.initialized === 'true') {
         return;
     }
-
-    const location = JSON.parse(dataElement.textContent || '{}');
+        const location = JSON.parse(dataElement.textContent || '{}');
     const latitude = Number(location.latitude);
     const longitude = Number(location.longitude);
 
@@ -1674,7 +1687,10 @@ const initializeAnnualDonutCharts = () => {
             chart.style.background = offset > 0
                 ? `conic-gradient(${stops.join(', ')})`
                 : 'conic-gradient(#e2e8f0 0% 100%)';
-            chart.setAttribute('aria-label', `${statistic.year}: ${formatter.format(statistic.total)} total locations`);
+            chart.setAttribute(
+                'aria-label',
+                `${statistic.year}: ${formatter.format(statistic.total)} ${this.language === 'en' ? 'total locations' : 'total lokasi'}`
+            );
             yearLabel.textContent = statistic.year;
             totalElement.textContent = formatter.format(statistic.total);
 

@@ -12,7 +12,8 @@
 
         <div class="mx-auto max-w-7xl px-4 pb-12 pt-12 text-center sm:px-6 lg:px-8">
             <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-red-300">
-                <span class="size-1.5 rounded-full bg-red-500"></span> EMBER People
+            <span class="size-1.5 rounded-full bg-red-500"></span>
+            {{ $language === 'en' ? 'EMBER People' : 'Tim EMBER' }}            
             </div>
             <h1 class="mt-4 text-4xl font-black tracking-[-0.04em] sm:text-5xl">{{ $language === 'en' ? 'Meet the team behind EMBER' : 'Kenali tim di balik EMBER' }}</h1>
         </div>
@@ -33,7 +34,9 @@
                             @endif
                             <div class="absolute inset-0 bg-gradient-to-b from-slate-950/10 via-slate-950/5 to-slate-950/95"></div>
                             <div class="absolute inset-x-0 top-0 flex items-center justify-between p-5">
-                                <span class="rounded-full border border-white/15 bg-slate-950/25 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/80 backdrop-blur-md">EMBER Team</span>
+                                <span class="rounded-full border border-white/15 bg-slate-950/25 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/80 backdrop-blur-md">
+                                    {{ $language === 'en' ? 'EMBER Team' : 'Tim EMBER' }}
+                                </span>
                                 <span class="flex size-9 items-center justify-center rounded-full border border-white/15 bg-slate-950/25 text-xs font-bold backdrop-blur-md">{{ str_pad((string) ($loop->index + 1), 2, '0', STR_PAD_LEFT) }}</span>
                             </div>
                             <div class="team-card-details absolute inset-x-0 bottom-0 p-6 sm:p-7">

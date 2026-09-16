@@ -47,7 +47,10 @@
                 </section>
 
                 <section>
-                    <h3 class="text-lg font-bold text-slate-950">Team <span class="text-slate-400">({{ $members->count() }})</span></h3>
+                <h3 class="text-lg font-bold text-slate-950">
+                    {{ $language === 'en' ? 'Team' : 'Tim' }}
+                    <span class="text-slate-400">({{ $members->count() }})</span>
+                </h3>
                     <div class="mt-4 grid gap-px bg-slate-200 sm:grid-cols-2">
                         @forelse ($members as $member)
                             <article class="bg-white p-5">

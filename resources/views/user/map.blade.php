@@ -23,9 +23,9 @@
         <div id="map-drilldown-control" class="absolute right-3 top-24 z-[500] w-[min(330px,calc(100%-1.5rem))] bg-white/95 p-4 shadow-xl ring-1 ring-slate-200 backdrop-blur sm:right-5 sm:top-5">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <p id="map-boundary-level" class="text-[10px] font-bold uppercase tracking-[0.16em] text-red-600">Provinsi</p>
+                    <p id="map-boundary-level" class="text-[10px] font-bold uppercase tracking-[0.16em] text-red-600">{{ $language === 'en' ? 'Province' : 'Provinsi' }}</p>
                     <p id="map-boundary-breadcrumb" class="mt-1 text-sm font-bold text-slate-950">Sumatera</p>
-                    <p id="map-boundary-instruction" class="mt-1 text-xs leading-5 text-slate-500">Klik provinsi untuk melihat kabupaten/kota.</p>
+                    <p id="map-boundary-instruction" class="mt-1 text-xs leading-5 text-slate-500">{{ $language === 'en' ? 'Click a province to view regencies/cities.' : 'Klik provinsi untuk melihat kabupaten/kota.' }}</p>
                 </div>
                 <button id="map-boundary-reset" type="button" class="hidden shrink-0 border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700">Reset</button>
             </div>
@@ -125,9 +125,31 @@
             <label class="mt-3 block">
                 <span class="mb-2 block text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">{{ $language === 'en' ? 'Land cover' : 'Tutupan lahan' }}</span>
                 <select id="map-land-cover-filter" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100">
-                    <option value="all">{{ $language === 'en' ? 'All land covers' : 'Semua tutupan lahan' }}</option>
+                    <option value="all">
+                        {{ $language === 'en' ? 'All land covers' : 'Semua tutupan lahan' }}
+                    </option>
+
                     @foreach ($locations->pluck('land_cover')->filter()->unique()->sort()->values() as $landCover)
-                        <option value="{{ $landCover }}">{{ $landCover }}</option>
+                        @php
+                            $landCoverLabel = match ($landCover) {
+                                'Formasi Hutan' => $language === 'en' ? 'Forest Formation' : 'Formasi Hutan',
+                                'Hutan Rawa Gambut' => $language === 'en' ? 'Peat Swamp Forest' : 'Hutan Rawa Gambut',
+                                'Kebun Kayu' => $language === 'en' ? 'Wood Plantation' : 'Kebun Kayu',
+                                'Lubang Tambang' => $language === 'en' ? 'Mining Pits' : 'Lubang Tambang',
+                                'Mangrove' => 'Mangrove',
+                                'Non-Vegetasi Lainnya' => $language === 'en' ? 'Other Non-Vegetated Areas' : 'Non-Vegetasi Lainnya',
+                                'Pemukiman' => $language === 'en' ? 'Settlement' : 'Pemukiman',
+                                'Pertanian Lainnya' => $language === 'en' ? 'Other Agriculture' : 'Pertanian Lainnya',
+                                'Sawah' => $language === 'en' ? 'Rice Field' : 'Sawah',
+                                'Sawit' => $language === 'en' ? 'Oil Palm' : 'Sawit',
+                                'Sungai, Danau, Laut' => $language === 'en' ? 'River, Lake, Sea' : 'Sungai, Danau, Laut',
+                                'Tambak' => $language === 'en' ? 'Pond' : 'Tambak',
+                                'Tumbuhan Non-Hutan Lainnya' => $language === 'en' ? 'Other Non-Forest Vegetation' : 'Tumbuhan Non-Hutan Lainnya',
+                                default => $landCover,
+                            };
+                        @endphp
+
+                        <option value="{{ $landCover }}">{{ $landCoverLabel }}</option>
                     @endforeach
                 </select>
             </label>
@@ -189,15 +211,15 @@
                 <div class="flex-1 overflow-y-auto p-5">
                     <div class="grid gap-px bg-slate-200 sm:grid-cols-2">
                         <div class="bg-slate-50 p-4">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Confidence NASA</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $language === 'en' ? 'NASA Confidence' : 'Confidence NASA' }}</p>
                             <p id="map-detail-confidence" class="mt-2 font-bold text-slate-900">-</p>
                         </div>
                         <div class="bg-slate-50 p-4">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $language === 'en' ? 'Status' : 'Status' }}</p>
                             <p id="map-detail-status" class="mt-2 font-bold text-slate-900">-</p>
                         </div>
                         <div class="bg-slate-950 p-4 text-white">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-red-300">Fire Susceptibility</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-red-300">{{ $language === 'en' ? 'Fire Susceptibility' : 'Kerawanan Hotspot' }}</p>
                             <p id="map-detail-fsi" class="mt-2 text-2xl font-black">-</p>
                         </div>
                         <div class="bg-slate-950 p-4 text-white">
