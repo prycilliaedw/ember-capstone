@@ -183,8 +183,8 @@
 
                                 <div class="max-w-md text-sm leading-6 text-slate-300">
                                     {{ $language === 'en'
-                                        ? 'Relative hotspot susceptibility indicator from NASA MODIS confidence and MapBiomas land-cover context. It is not a fire probability.'
-                                        : 'Indikator kerawanan relatif hotspot dari confidence NASA MODIS dan konteks tutupan lahan MapBiomas. Nilai ini bukan probabilitas kebakaran.' }}
+                                        ? 'Relative hotspot susceptibility index derived from literature-based land-cover susceptibility and empirical hotspot evidence. It is not a fire probability.'
+                                        : 'Indeks kerawanan relatif hotspot yang dihitung dari kerawanan tutupan lahan berbasis literatur dan bukti empiris hotspot. Nilai ini bukan probabilitas kebakaran.' }}
                                 </div>
                             </div>
                         </div>
@@ -202,11 +202,21 @@
 
                             <div class="bg-slate-900/80 p-4">
                                 <p class="text-[10px] uppercase tracking-wider text-slate-500">
-                                    {{ $language === 'en' ? 'Hybrid LCS' : 'LCS Hibrida' }}
+                                    {{ $language === 'en' ? 'Prior LCS' : 'Prior LCS' }}
                                 </p>
 
                                 <p class="mt-2 text-sm font-bold">
-                                    {{ isset($location->hybrid_lcs) ? number_format((float) $location->hybrid_lcs, 1).' / 100' : '-' }}
+                                    {{ isset($location->prior_lcs) ? number_format((float) $location->prior_lcs, 1).' / 100' : '-' }}
+                                </p>
+                            </div>
+
+                            <div class="bg-slate-900/80 p-4">
+                                <p class="text-[10px] uppercase tracking-wider text-slate-500">
+                                    {{ $language === 'en' ? 'Empirical Evidence' : 'Bukti Empiris' }}
+                                </p>
+
+                                <p class="mt-2 text-sm font-bold">
+                                    {{ isset($location->empirical_evidence) ? number_format((float) $location->empirical_evidence, 1).' / 100' : '-' }}
                                 </p>
                             </div>
 
@@ -322,23 +332,33 @@
                             <div class="grid grid-cols-2 gap-3">
                                 <div class="rounded-xl bg-slate-50 p-3">
                                     <p class="text-[10px] uppercase tracking-wider text-slate-400">
-                                        {{ $language === 'en' ? 'LCS' : 'LCS' }}
+                                        {{ $language === 'en' ? 'Prior LCS' : 'Prior LCS' }}
                                     </p>
 
                                     <p class="mt-1 font-bold text-slate-900">
-                                        {{ isset($location->hybrid_lcs) ? number_format((float) $location->hybrid_lcs, 1) : '-' }}
+                                        {{ isset($location->prior_lcs) ? number_format((float) $location->prior_lcs, 1) : '-' }}
                                     </p>
                                 </div>
 
                                 <div class="rounded-xl bg-slate-50 p-3">
                                     <p class="text-[10px] uppercase tracking-wider text-slate-400">
-                                        {{ $language === 'en' ? 'FSI' : 'FSI' }}
+                                        {{ $language === 'en' ? 'Empirical Evidence' : 'Bukti Empiris' }}
                                     </p>
 
                                     <p class="mt-1 font-bold text-slate-900">
-                                        {{ isset($location->fsi_score) ? number_format((float) $location->fsi_score, 1) : '-' }}
+                                        {{ isset($location->empirical_evidence) ? number_format((float) $location->empirical_evidence, 1) : '-' }}
                                     </p>
                                 </div>
+                            </div>
+
+                            <div class="mt-3 rounded-xl bg-slate-50 p-3">
+                                <p class="text-[10px] uppercase tracking-wider text-slate-400">
+                                    {{ $language === 'en' ? 'FSI' : 'FSI' }}
+                                </p>
+
+                                <p class="mt-1 font-bold text-slate-900">
+                                    {{ isset($location->fsi_score) ? number_format((float) $location->fsi_score, 1) : '-' }}
+                                </p>
                             </div>
                         </div>
                     </div>

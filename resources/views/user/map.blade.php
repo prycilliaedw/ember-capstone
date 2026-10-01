@@ -229,14 +229,26 @@
                     </div>
 
                     <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $language === 'en' ? 'Land-cover context' : 'Konteks tutupan lahan' }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            {{ $language === 'en' ? 'Land-cover context' : 'Konteks tutupan lahan' }}
+                        </p>
+
                         <p id="map-detail-landCover" class="mt-2 font-bold text-slate-900">-</p>
+
                         <div class="mt-3 flex items-center justify-between gap-3 text-xs">
-                            <span class="font-semibold text-slate-400">Hybrid LCS</span>
-                            <span id="map-detail-lcs" class="font-black text-slate-800">-</span>
+                            <span class="font-semibold text-slate-400">
+                                {{ $language === 'en' ? 'Prior LCS' : 'Prior LCS' }}
+                            </span>
+                            <span id="map-detail-priorLcs" class="font-black text-slate-800">-</span>
+                        </div>
+
+                        <div class="mt-2 flex items-center justify-between gap-3 text-xs">
+                            <span class="font-semibold text-slate-400">
+                                {{ $language === 'en' ? 'Empirical Evidence' : 'Bukti Empiris' }}
+                            </span>
+                            <span id="map-detail-empiricalEvidence" class="font-black text-slate-800">-</span>
                         </div>
                     </div>
-                    
                     <div class="mt-3 flex items-center justify-between gap-3 text-xs">
                         <span class="font-semibold text-slate-400">
                             {{ $language === 'en' ? 'Context assessment' : 'Penilaian konteks' }}

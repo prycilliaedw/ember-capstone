@@ -14,135 +14,445 @@ class ImportEmberHotspots extends Command
         {--truncate : Empty titik_lokasi before importing}
         {--chunk=1000 : Insert batch size}';
 
-    protected $description = 'Import NASA/MapBiomas-enriched EMBER hotspots with FSI fields.';
+    protected $description =
+        'Import NASA/MapBiomas-enriched EMBER hotspots and calculate FSI using the current model.';
 
-    public function handle(FireSusceptibilityService $susceptibility): int
-    {
+    public function handle(
+        FireSusceptibilityService $susceptibility
+    ): int {
         $path = $this->argument('path');
 
-        if (! is_file($path) || ! is_readable($path)) {
+        if (!is_file($path) || !is_readable($path)) {
             $this->error("CSV tidak dapat dibaca: {$path}");
             return self::FAILURE;
         }
 
         if ($this->option('truncate')) {
             DB::table('titik_lokasi')->truncate();
-            $this->warn('titik_lokasi dikosongkan sebelum impor.');
+
+            $this->warn(
+                'titik_lokasi dikosongkan sebelum impor.'
+            );
         }
 
         $handle = fopen($path, 'rb');
+
         if ($handle === false) {
-            throw new RuntimeException('Gagal membuka CSV.');
+            throw new RuntimeException(
+                'Gagal membuka CSV.'
+            );
         }
 
         try {
-            $header = fgetcsv($handle, escape: '');
-            if (! is_array($header)) {
-                throw new RuntimeException('CSV kosong.');
+            /*
+             * ---------------------------------------------------------
+             * READ HEADER
+             * ---------------------------------------------------------
+             */
+
+            $header = fgetcsv(
+                $handle,
+                escape: ''
+            );
+
+            if (!is_array($header)) {
+                throw new RuntimeException(
+                    'CSV kosong.'
+                );
             }
 
-            $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', trim((string) $header[0])) ?? trim((string) $header[0]);
-            $header = array_map(static fn ($value) => trim((string) $value), $header);
+            $header[0] = preg_replace(
+                '/^\xEF\xBB\xBF/',
+                '',
+                trim((string) $header[0])
+            ) ?? trim((string) $header[0]);
 
-            $required = ['LATITUDE', 'LONGITUDE', 'ACQ_DATE', 'ACQ_TIME', 'SATELLITE', 'INSTRUMENT', 'CONFIDENCE', 'DAYNIGHT', 'LEVEL_3', 'LEVEL_4', 'LEVEL_5', 'LEVEL_6', 'LAND_COVER_ID', 'LAND_COVER', 'prior', 'emp_conf_ev', 'LCS_80_20', 'FSI_SUGENO_55_45', 'FSI_CLASS_SUGENO'];
+            $header = array_map(
+                static fn ($value) =>
+                    trim((string) $value),
+                $header
+            );
+
+            /*
+            * ---------------------------------------------------------
+            * REQUIRED SOURCE COLUMNS
+            * ---------------------------------------------------------
+            *
+            * FSI values are recalculated by FireSusceptibilityService
+            * during import. The source CSV therefore only needs the
+            * NASA/MapBiomas-enriched fields and empirical evidence.
+            */
+
+            $required = [
+                'LATITUDE',
+                'LONGITUDE',
+                'ACQ_DATE',
+                'ACQ_TIME',
+                'SATELLITE',
+                'INSTRUMENT',
+                'CONFIDENCE',
+                'DAYNIGHT',
+                'LEVEL_3',
+                'LEVEL_4',
+                'LEVEL_5',
+                'LEVEL_6',
+                'LAND_COVER_ID',
+                'emp_conf_ev',
+            ];
+
             foreach ($required as $column) {
-                if (! in_array($column, $header, true)) {
-                    throw new RuntimeException("Kolom wajib tidak ditemukan: {$column}");
+                if (!in_array($column, $header, true)) {
+                    throw new RuntimeException(
+                        "Kolom wajib tidak ditemukan: {$column}"
+                    );
                 }
             }
 
             $index = array_flip($header);
+
+            /*
+             * ---------------------------------------------------------
+             * IMPORT SETTINGS
+             * ---------------------------------------------------------
+             */
+
             $batch = [];
             $processed = 0;
             $inserted = 0;
-            $chunkSize = max(100, (int) $this->option('chunk'));
 
-            while (($row = fgetcsv($handle, separator: ',', escape: '')) !== false) {
-                if (count(array_filter($row, static fn ($value) => trim((string) $value) !== '')) === 0) {
+            $chunkSize = max(
+                100,
+                (int) $this->option('chunk')
+            );
+
+            /*
+             * ---------------------------------------------------------
+             * PROCESS CSV
+             * ---------------------------------------------------------
+             */
+
+            while (
+                ($row = fgetcsv(
+                    $handle,
+                    separator: ',',
+                    escape: ''
+                )) !== false
+            ) {
+                if (
+                    count(
+                        array_filter(
+                            $row,
+                            static fn ($value) =>
+                                trim((string) $value) !== ''
+                        )
+                    ) === 0
+                ) {
                     continue;
                 }
 
                 $processed++;
-                $confidence = is_numeric($row[$index['CONFIDENCE']] ?? null)
-                    ? (float) $row[$index['CONFIDENCE']]
+
+                /*
+                 * -----------------------------------------------------
+                 * SOURCE VALUES
+                 * -----------------------------------------------------
+                 */
+
+                $confidence = $this->number(
+                    $row[$index['CONFIDENCE']] ?? null
+                );
+
+                $landCoverId = is_numeric(
+                    $row[$index['LAND_COVER_ID']] ?? null
+                )
+                    ? (int) $row[$index['LAND_COVER_ID']]
                     : null;
 
-                $fsi = is_numeric($row[$index['FSI_SUGENO_55_45']] ?? null)
-                    ? (float) $row[$index['FSI_SUGENO_55_45']]
-                    : null;
+                $empiricalEvidence = $this->number(
+                    $row[$index['emp_conf_ev']] ?? null
+                );
 
-                $date = $this->parseDate($row[$index['ACQ_DATE']] ?? null);
-                $daynight = strtoupper(trim((string) ($row[$index['DAYNIGHT']] ?? '')));
+                /*
+                 * -----------------------------------------------------
+                 * VALIDATION
+                 * -----------------------------------------------------
+                 */
+
+                if ($confidence === null) {
+                    throw new RuntimeException(
+                        "CONFIDENCE tidak valid pada baris CSV {$processed}."
+                    );
+                }
+
+                if ($landCoverId === null) {
+                    throw new RuntimeException(
+                        "LAND_COVER_ID tidak valid pada baris CSV {$processed}."
+                    );
+                }
+
+                if (
+                    !array_key_exists(
+                        $landCoverId,
+                        FireSusceptibilityService::PRIOR_LCS
+                    )
+                ) {
+                    throw new RuntimeException(
+                        "LAND_COVER_ID {$landCoverId} belum memiliki "
+                        . "PRIOR_LCS pada FireSusceptibilityService. "
+                        . "Baris CSV: {$processed}."
+                    );
+                }
+
+                if ($empiricalEvidence === null) {
+                    throw new RuntimeException(
+                        "emp_conf_ev tidak valid pada baris CSV {$processed}."
+                    );
+                }
+
+                /*
+                 * -----------------------------------------------------
+                 * LAND COVER
+                 * -----------------------------------------------------
+                 */
+
+                $landCover =
+                    FireSusceptibilityService::LAND_COVER_NAMES[
+                        $landCoverId
+                    ] ?? null;
+
+                /*
+                 * -----------------------------------------------------
+                 * LITERATURE PRIOR
+                 * -----------------------------------------------------
+                 */
+
+                $priorLcs =
+                    FireSusceptibilityService::PRIOR_LCS[
+                        $landCoverId
+                    ];
+
+                /*
+                 * -----------------------------------------------------
+                 * FUZZY SUGENO
+                 * -----------------------------------------------------
+                 *
+                 * Current model:
+                 *
+                 * Prior LCS + Empirical Evidence
+                 *                 ↓
+                 *          Fuzzy Sugeno
+                 *                 ↓
+                 *               FSI
+                 *
+                 * Confidence is NOT passed into FSI.
+                 */
+
+                $fsi = $susceptibility->fsi(
+                    $priorLcs,
+                    $empiricalEvidence
+                );
+
+                $fsiClass =
+                    $susceptibility->fsiClass($fsi);
+
+                /*
+                 * -----------------------------------------------------
+                 * CONTEXT FLAG
+                 * -----------------------------------------------------
+                 */
+
+                $contextFlag =
+                    $susceptibility->contextFlag(
+                        $priorLcs,
+                        $empiricalEvidence
+                    );
+
+                /*
+                 * -----------------------------------------------------
+                 * DATE / DAY-NIGHT
+                 * -----------------------------------------------------
+                 */
+
+                $date = $this->parseDate(
+                    $row[$index['ACQ_DATE']] ?? null
+                );
+
+                $daynight = strtoupper(
+                    trim(
+                        (string) (
+                            $row[$index['DAYNIGHT']] ?? ''
+                        )
+                    )
+                );
+
+                $timestamp = now();
+
+                /*
+                 * -----------------------------------------------------
+                 * DATABASE ROW
+                 * -----------------------------------------------------
+                 *
+                 * hybrid_lcs is intentionally left null because it is not
+                 * part of the current Fire Susceptibility Index model.
+                 */
 
                 $batch[] = [
-                    'provinsi' => $row[$index['LEVEL_3']] ?: null,
-                    'kabupaten_kota' => $row[$index['LEVEL_4']] ?: null,
-                    'kecamatan' => $row[$index['LEVEL_5']] ?: null,
-                    'desa' => $row[$index['LEVEL_6']] ?: null,
-                    'latitude' => $this->number($row[$index['LATITUDE']] ?? null),
-                    'longitude' => $this->number($row[$index['LONGITUDE']] ?? null),
+                    'provinsi' =>
+                        $row[$index['LEVEL_3']] ?: null,
+
+                    'kabupaten_kota' =>
+                        $row[$index['LEVEL_4']] ?: null,
+
+                    'kecamatan' =>
+                        $row[$index['LEVEL_5']] ?: null,
+
+                    'desa' =>
+                        $row[$index['LEVEL_6']] ?: null,
+
+                    'latitude' =>
+                        $this->number(
+                            $row[$index['LATITUDE']] ?? null
+                        ),
+
+                    'longitude' =>
+                        $this->number(
+                            $row[$index['LONGITUDE']] ?? null
+                        ),
+
                     'date' => $date,
+
                     'confidence' => $confidence,
-                    'satellite' => $row[$index['SATELLITE']] ?: null,
-                    'instrument' => $row[$index['INSTRUMENT']] ?: null,
-                    'daynight' => $daynight !== '' ? substr($daynight, 0, 1) : null,
-                    'acq_time' => is_numeric($row[$index['ACQ_TIME']] ?? null) ? (int) $row[$index['ACQ_TIME']] : null,
-                    'land_cover_id' => is_numeric($row[$index['LAND_COVER_ID']] ?? null) ? (int) $row[$index['LAND_COVER_ID']] : null,
-                    'land_cover' => $row[$index['LAND_COVER']] ?: null,
-                    'prior_lcs' => $this->number($row[$index['prior']] ?? null),
-                    'empirical_evidence' => $this->number($row[$index['emp_conf_ev']] ?? null),
-                    'hybrid_lcs' => $this->number($row[$index['LCS_80_20']] ?? null),
-                    'fsi_score' => $fsi,
-                    'fsi_class' => $row[$index['FSI_CLASS_SUGENO']] ?: ($susceptibility->fsiClass($fsi)),
-                    'context_flag' => $susceptibility->contextFlag(
-                        $this->number($row[$index['prior']] ?? null),
-                        $this->number($row[$index['emp_conf_ev']] ?? null),
-                    ),
-                    'created_at' => now(),
-                    'updated_at' => now(),
+
+                    'satellite' =>
+                        $row[$index['SATELLITE']] ?: null,
+
+                    'instrument' =>
+                        $row[$index['INSTRUMENT']] ?: null,
+
+                    'daynight' =>
+                        $daynight !== ''
+                            ? substr($daynight, 0, 1)
+                            : null,
+
+                    'acq_time' =>
+                        is_numeric(
+                            $row[$index['ACQ_TIME']] ?? null
+                        )
+                            ? (int) $row[$index['ACQ_TIME']]
+                            : null,
+
+                    'land_cover_id' =>
+                        $landCoverId,
+
+                    'land_cover' =>
+                        $landCover,
+
+                    'prior_lcs' =>
+                        $priorLcs,
+
+                    'empirical_evidence' =>
+                        $empiricalEvidence,
+
+                    'fsi_score' =>
+                        $fsi,
+
+                    'fsi_class' =>
+                        $fsiClass,
+
+                    'context_flag' =>
+                        $contextFlag,
+
+                    'created_at' =>
+                        $timestamp,
+
+                    'updated_at' =>
+                        $timestamp,
                 ];
 
+                /*
+                 * -----------------------------------------------------
+                 * INSERT CHUNK
+                 * -----------------------------------------------------
+                 */
+
                 if (count($batch) >= $chunkSize) {
-                    DB::table('titik_lokasi')->insert($batch);
+                    DB::table('titik_lokasi')
+                        ->insert($batch);
+
                     $inserted += count($batch);
+
                     $batch = [];
-                    $this->line("Imported {$inserted} rows...");
+
+                    $this->line(
+                        "Imported {$inserted} rows..."
+                    );
                 }
             }
 
+            /*
+             * ---------------------------------------------------------
+             * INSERT REMAINING
+             * ---------------------------------------------------------
+             */
+
             if ($batch !== []) {
-                DB::table('titik_lokasi')->insert($batch);
+                DB::table('titik_lokasi')
+                    ->insert($batch);
+
                 $inserted += count($batch);
             }
         } finally {
             fclose($handle);
         }
 
-        $this->info("Selesai: {$inserted} hotspot berhasil diimpor dari {$processed} baris.");
+        $this->info(
+            "Selesai: {$inserted} hotspot berhasil diimpor "
+            . "dari {$processed} baris."
+        );
 
         return self::SUCCESS;
     }
 
-    private function number(?string $value): ?float
-    {
-        if ($value === null || trim($value) === '' || ! is_numeric(trim($value))) {
+    private function number(
+        ?string $value
+    ): ?float {
+        if (
+            $value === null
+            || trim($value) === ''
+            || !is_numeric(trim($value))
+        ) {
             return null;
         }
 
         return (float) trim($value);
     }
 
-    private function parseDate(?string $value): ?string
-    {
+    private function parseDate(
+        ?string $value
+    ): ?string {
         $value = trim((string) $value);
+
         if ($value === '') {
             return null;
         }
 
-        if (preg_match('/^(\\d{4})[\\/-](\\d{1,2})[\\/-](\\d{1,2})$/', $value, $matches) === 1) {
-            return sprintf('%04d-%02d-%02d', $matches[1], $matches[2], $matches[3]);
+        if (
+            preg_match(
+                '/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/',
+                $value,
+                $matches
+            ) === 1
+        ) {
+            return sprintf(
+                '%04d-%02d-%02d',
+                $matches[1],
+                $matches[2],
+                $matches[3]
+            );
         }
 
-        throw new RuntimeException("Format tanggal tidak dikenali: {$value}");
+        throw new RuntimeException(
+            "Format tanggal tidak dikenali: {$value}"
+        );
     }
 }

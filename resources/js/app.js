@@ -65,17 +65,21 @@ const EmberMap = {
                 ? Number(location.empirical_evidence)
                 : null,
 
-            hybrid_lcs: location.hybrid_lcs !== null && location.hybrid_lcs !== undefined
-                ? Number(location.hybrid_lcs)
-                : null,
-
             fsi_score: location.fsi_score !== null && location.fsi_score !== undefined
                 ? Number(location.fsi_score)
                 : null,
 
-            land_cover: location.land_cover ? String(location.land_cover).trim() : '',
-            fsi_class: location.fsi_class ? String(location.fsi_class).trim() : '',
-            context_flag: location.context_flag ? String(location.context_flag).trim() : '',
+            land_cover: location.land_cover
+                ? String(location.land_cover).trim()
+                : '',
+
+            fsi_class: location.fsi_class
+                ? String(location.fsi_class).trim()
+                : '',
+
+            context_flag: location.context_flag
+                ? String(location.context_flag).trim()
+                : '',
         }));
 
         const locations = this.locations;
@@ -1169,7 +1173,8 @@ const EmberMap = {
         }
 
         const fsiScore = Number(location.fsi_score);
-        const hybridLcs = Number(location.hybrid_lcs);
+        const priorLcs = Number(location.prior_lcs);
+        const empiricalEvidence = Number(location.empirical_evidence);
 
         const values = {
             title: location.desa
@@ -1215,8 +1220,12 @@ const EmberMap = {
 
             landCover: location.land_cover || '-',
 
-            lcs: Number.isFinite(hybridLcs)
-                ? `${hybridLcs.toFixed(1)} / 100`
+            priorLcs: Number.isFinite(priorLcs)
+                ? `${priorLcs.toFixed(1)} / 100`
+                : '-',
+
+            empiricalEvidence: Number.isFinite(empiricalEvidence)
+                ? `${empiricalEvidence.toFixed(1)} / 100`
                 : '-',
 
             province: location.provinsi || '-',
