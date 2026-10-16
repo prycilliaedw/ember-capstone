@@ -14,13 +14,13 @@
             ->values();
     @endphp
 
-    <section class="relative h-[calc(100vh-6.5rem)] min-h-[600px] w-full overflow-hidden bg-slate-100">
-        <div class="absolute left-16 top-3 z-[500] max-w-[calc(100%-5rem)] bg-white/95 px-4 py-3 shadow-xl ring-1 ring-slate-200 backdrop-blur sm:left-20 sm:top-5 sm:max-w-[calc(100%-6.25rem)] sm:px-5 sm:py-4">
+    <section class="relative h-[calc(100vh-6.5rem)] min-h-150 w-full overflow-hidden bg-slate-100">
+        <div class="absolute left-16 top-3 z-500 max-w-[calc(100%-5rem)] bg-white/95 px-4 py-3 shadow-xl ring-1 ring-slate-200 backdrop-blur sm:left-20 sm:top-5 sm:max-w-[calc(100%-6.25rem)] sm:px-5 sm:py-4">
             <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-red-600">{{ $language === 'en' ? 'Interactive map' : 'Peta interaktif' }}</p>
             <h1 class="mt-1 text-lg font-bold tracking-tight text-slate-950 sm:text-xl">{{ $language === 'en' ? 'EMBER location distribution' : 'Persebaran lokasi EMBER' }}</h1>
         </div>
 
-        <div id="map-drilldown-control" class="absolute right-3 top-24 z-[500] w-[min(330px,calc(100%-1.5rem))] bg-white/95 p-4 shadow-xl ring-1 ring-slate-200 backdrop-blur sm:right-5 sm:top-5">
+        <div id="map-drilldown-control" class="absolute right-3 top-24 z-500 w-[min(330px,calc(100%-1.5rem))] bg-white/95 p-4 shadow-xl ring-1 ring-slate-200 backdrop-blur sm:right-5 sm:top-5">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <p id="map-boundary-level" class="text-[10px] font-bold uppercase tracking-[0.16em] text-red-600">{{ $language === 'en' ? 'Province' : 'Provinsi' }}</p>
@@ -31,7 +31,7 @@
             </div>
         </div>
 
-        <section id="map-statistics-panel" class="absolute right-3 top-56 z-[500] max-h-[calc(100%-15rem)] w-[min(330px,calc(100%-1.5rem))] overflow-y-auto bg-white/95 p-4 shadow-xl ring-1 ring-slate-200 backdrop-blur sm:right-5 sm:top-40 sm:max-h-[calc(100%-11rem)]" aria-label="{{ $language === 'en' ? 'Map statistics' : 'Statistik peta' }}">
+        <section id="map-statistics-panel" class="absolute right-3 top-56 z-500 max-h-[calc(100%-15rem)] w-[min(330px,calc(100%-1.5rem))] overflow-y-auto bg-white/95 p-4 shadow-xl ring-1 ring-slate-200 backdrop-blur sm:right-5 sm:top-40 sm:max-h-[calc(100%-11rem)]" aria-label="{{ $language === 'en' ? 'Map statistics' : 'Statistik peta' }}">
             <div class="flex items-start justify-between gap-3 border-b border-slate-200 pb-3">
                 <div>
                     <p class="text-[9px] font-black uppercase tracking-[0.18em] text-red-700">{{ $language === 'en' ? 'Status statistics' : 'Statistik status' }}</p>
@@ -86,7 +86,7 @@
             </div>
         </section>
 
-        <div id="map-status-filter" class="absolute bottom-28 left-3 z-[500] w-[min(260px,calc(100%-1.5rem))] rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur sm:bottom-32 sm:left-5">
+        <div id="map-status-filter" class="absolute bottom-28 left-3 z-500 w-[min(260px,calc(100%-1.5rem))] rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur sm:bottom-32 sm:left-5">
             <div class="mb-2.5 flex items-center justify-between gap-3">
                 <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{{ $language === 'en' ? 'Hotspot filters' : 'Filter hotspot' }}</p>
                 <button type="button" data-map-filters-reset class="text-[10px] font-black text-red-600 transition hover:text-red-500">{{ $language === 'en' ? 'Reset' : 'Reset' }}</button>
@@ -155,7 +155,7 @@
             </label>
         </div>
 
-        <div id="map-year-filter" class="absolute bottom-7 left-3 z-[550] w-[min(420px,calc(100%-1.5rem))] sm:bottom-8 sm:left-5">
+        <div id="map-year-filter" class="absolute bottom-7 left-3 z-550 w-[min(420px,calc(100%-1.5rem))] sm:bottom-8 sm:left-5">
             <div class="map-year-slider-control" style="--slider-progress: calc(100% - 1.125rem)">
                 <span class="sr-only">{{ $language === 'en' ? 'Filter locations by year' : 'Filter lokasi berdasarkan tahun' }}</span>
                 <div class="map-year-slider-track" aria-hidden="true">
@@ -192,11 +192,11 @@
 
         <div class="absolute inset-0 bg-white">
             <div id="ember-map" class="h-full w-full bg-slate-100" aria-label="{{ $language === 'en' ? 'EMBER location distribution map' : 'Peta persebaran lokasi EMBER' }}"></div>
-            <div id="map-filter-empty" class="pointer-events-none absolute right-4 top-4 z-[550] hidden max-w-sm bg-white/95 px-5 py-4 text-center text-sm font-semibold text-slate-700 shadow-lg backdrop-blur sm:right-5 sm:top-5" aria-live="polite">
+            <div id="map-filter-empty" class="pointer-events-none absolute right-4 top-4 z-550 hidden max-w-sm bg-white/95 px-5 py-4 text-center text-sm font-semibold text-slate-700 shadow-lg backdrop-blur sm:right-5 sm:top-5" aria-live="polite">
                 {{ $language === 'en' ? 'No locations match the selected filters.' : 'Tidak ada titik lokasi yang sesuai dengan filter.' }}
             </div>
 
-            <aside id="map-detail-panel" data-open="false" class="map-detail-panel absolute inset-y-0 right-0 z-[600] flex w-full max-w-sm flex-col bg-white shadow-2xl" aria-hidden="true" aria-label="{{ $language === 'en' ? 'Location details' : 'Detail lokasi' }}">
+            <aside id="map-detail-panel" data-open="false" class="map-detail-panel absolute inset-y-0 right-0 z-600 flex w-full max-w-sm flex-col bg-white shadow-2xl" aria-hidden="true" aria-label="{{ $language === 'en' ? 'Location details' : 'Detail lokasi' }}">
                 <div class="flex items-start justify-between gap-4 bg-slate-950 p-5 text-white">
                     <div class="min-w-0">
                         <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-red-400">{{ $language === 'en' ? 'Location details' : 'Detail lokasi' }}</p>
@@ -269,7 +269,7 @@
                         ]) as $label => $key)
                             <div class="grid grid-cols-[110px_1fr] gap-3 py-3.5">
                                 <dt class="text-xs font-semibold text-slate-400">{{ $label }}</dt>
-                                <dd id="map-detail-{{ $key }}" class="break-words text-sm font-semibold text-slate-800">-</dd>
+                                <dd id="map-detail-{{ $key }}" class="wrap-break-word text-sm font-semibold text-slate-800">-</dd>
                             </div>
                         @endforeach
                     </dl>
